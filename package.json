@@ -4,7 +4,7 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "test": "mocha tests/**/*.js"
+    "test": "mocha --require tests/bootstrap.js tests/**/*.js"
   },
   "author": "Victor Schroeder",
   "license": "MIT",
