@@ -20,6 +20,12 @@ class Request extends EventEmitter {
    */
   notifyReadyState() {
     this.emit('ready');
+
+    // The "ready" event was just fired above, but it might be too early or
+    // another listener might be interested on this state on a later point in
+    // time. We must guarantee that this event is ALWAYS fired exactly once
+    // and always once per listener, the same way the "end" event is fired
+    // by the IncomingMessage instance.
     this.on('newListener', (eventName, listener) => {
       // Avoid calling the same listener twice
       if (this.listeners('ready').includes(listener)) return;
