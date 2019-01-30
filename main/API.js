@@ -1,7 +1,9 @@
+'use strict';
+
 var EventEmitter = require('events');
 
 var Route = require('./Route');
-var compose = require('../utils/compose-middleware');
+var serial = require('../utils/compose-eventware').serial;
 var notFound = require('../middleware/not-found');
 
 
@@ -15,8 +17,12 @@ class API extends EventEmitter {
   handleRequest(req, res, callback) {
     var route = this.match(req.method, req.url);
     var middleware = route ? route.middleware : [];
-    middleware = [...middleware, notFound];
-    compose(middleware)(req, res, callback);
+
+    var radio = new EventEmitter();
+    radio.on('ok', callback);
+    radio.on('error', callback);
+
+    serial([...middleware, notFound])(req, res, radio);
   }
 
   route(method, pattern, middleware) {
