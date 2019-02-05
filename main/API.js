@@ -17,12 +17,7 @@ class API extends EventEmitter {
   handleRequest(req, res, callback) {
     var route = this.match(req.method, req.url);
     var middleware = route ? route.middleware : [];
-
-    var radio = new EventEmitter();
-    radio.on('ok', callback);
-    radio.on('error', callback);
-
-    serial([...middleware, notFound])(req, res, radio);
+    serial([...middleware, notFound])(req, res, callback);
   }
 
   route(method, pattern, middleware) {

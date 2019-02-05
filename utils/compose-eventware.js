@@ -31,7 +31,8 @@ function parallel(eventware) {
 function serial(eventware) {
   return function(req, res, radio) {
     var count = eventware.length;
-    if (!count) return radio.emit('ok');
+    if (!count && 'function' === typeof radio.emit) return radio.emit('ok');
+    if (!count && 'function' === typeof radio) return radio();
 
     var head = eventware[0];
     var tail = eventware.slice(1);
@@ -41,7 +42,8 @@ function serial(eventware) {
       error: (err) => radio.emit('error', err)
     });
 
-    head(req, res, control);
+    if ('function' === typeof head.emit) head.emit('request', req, res, control);
+    if ('function' === typeof head) head(req, res, control);
   };
 }
 
