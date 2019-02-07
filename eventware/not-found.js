@@ -1,7 +1,7 @@
 'use strict';
 
-module.exports = (req, res, next) => {
+module.exports = (req, res, radio) => {
   res.code = 404;
   res.body = {error: 'Not found'};
-  next();
+  radio.emit('ok');
 };

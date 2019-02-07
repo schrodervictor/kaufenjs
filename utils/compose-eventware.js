@@ -4,11 +4,13 @@ var EventEmitter = require('events');
 
 function parallel(eventware) {
   return function(req, res, radio) {
-    var count = eventware.length + 1;
+    var count = eventware.length;
+    if (!count) return radio.emit('ok');
+
     var ok = false;
     var error = false;
 
-    var control = getCallableEmitter({
+    var control = getEmitter({
       success: () => {
         if (ok || error || --count) return;
         ok = true;
@@ -22,42 +24,31 @@ function parallel(eventware) {
     });
 
     eventware.map(handler => handler(req, res, control));
-
-    // Emit the "ok" event at least once (prevents empty eventware to hang)
-    control.emit('ok');
   };
 }
 
 function serial(eventware) {
   return function(req, res, radio) {
     var count = eventware.length;
-    if (!count && 'function' === typeof radio.emit) return radio.emit('ok');
-    if (!count && 'function' === typeof radio) return radio();
+    if (!count) return radio.emit('ok');
 
     var head = eventware[0];
     var tail = eventware.slice(1);
 
-    var control = getCallableEmitter({
+    var control = getEmitter({
       success: () => serial(tail)(req, res, radio),
       error: (err) => radio.emit('error', err)
     });
 
-    if ('function' === typeof head.emit) head.emit('request', req, res, control);
-    if ('function' === typeof head) head(req, res, control);
+    head(req, res, control);
   };
 }
 
-function getCallableEmitter({ success, error }) {
+function getEmitter({ success, error }) {
   var emitter = new EventEmitter();
   emitter.on('ok', success);
   emitter.on('error', error);
-
-  var callback = (err) => {
-    if (err) return emitter.emit('error', err);
-    emitter.emit('ok');
-  };
-  callback.emit = emitter.emit.bind(emitter);
-  return callback;
+  return emitter;
 }
 
 module.exports = {

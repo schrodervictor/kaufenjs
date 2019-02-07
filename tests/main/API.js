@@ -15,13 +15,7 @@ describe('./main/API.js', () => {
       var api = new API();
       expect(api).to.be.an.instanceOf(EventEmitter);
     });
-
-    it('should expose method: route', () => {
-      var api = new API();
-      expect(api).to.have.property('route');
-      expect(api.route).to.be.a('function');
-    });
-  })
+  });
 
   describe('catch all handler', () => {
     it('should have a catch all handler (not found)', (done) => {
@@ -29,7 +23,7 @@ describe('./main/API.js', () => {
       var req = {method: 'GET', url: '/cart'};
       var res = {};
 
-      api.emit('request', req, res, function() {
+      api.emit('request', req, res, () => {
         expect(res.code).to.be.equal(404);
         expect(res.body).to.be.deep.equal({error: 'Not found'});
         done();
@@ -37,96 +31,66 @@ describe('./main/API.js', () => {
     });
   });
 
-  describe('.route(method, pattern, handler)', () => {
-    it('should accept a method, url pattern and eventware', (done) => {
+  describe('.route(requestSpecs, eventware)', () => {
+    it('should accept a string as requestSpecs and an eventware', (done) => {
       var api = new API();
       var req = {method: 'GET', url: '/cart'};
       var res = {};
 
-      var eventware = spy((req, res, radio) => radio.emit('ok'));
-
-      api.route('GET', '/cart', eventware);
-
-      api.emit('request', req, res, () => {
+      var eventware = spy((req, res, radio) => {
         expect(eventware).to.have.been.calledOnce;
         done();
       });
-    });
 
-    it('should accept a method, url pattern and middleware', (done) => {
-      var api = new API();
-      var req = {
-        method: 'GET',
-        url: '/cart'
-      };
-      var res = {};
-
-      var middleware = spy((req, res, next) => next());
-
-      api.route('GET', '/cart', middleware);
-
-      api.emit('request', req, res, () => {
-        expect(middleware).to.have.been.calledOnce;
-        done();
-      });
+      api.route('GET /cart', eventware);
+      api.emit('request', req, res);
     });
 
     it('should accept regular expressions for the url pattern', (done) => {
       var api = new API();
-      var req = {
-        method: 'GET',
-        url: '/cart'
-      };
+      var req = {method: 'GET', url: '/cart'};
       var res = {};
 
-      var middleware = spy((req, res, next) => next());
-
-      api.route('GET', '~/c..t', middleware);
-
-      api.emit('request', req, res, () => {
-        expect(middleware).to.have.been.calledOnce;
+      var eventware = spy((req, res, radio) => {
+        expect(eventware).to.have.been.calledOnce;
         done();
       });
+
+      api.route('GET ~/c..t', eventware);
+      api.emit('request', req, res);
     });
 
     it('should anchor all regular expressions patterns', (done) => {
       var api = new API();
-      var req = {
-        method: 'GET',
-        url: '/cart'
-      };
+      var req = {method: 'GET', url: '/cart'};
       var res = {};
 
-      var middleware = spy((req, res, next) => next());
+      var eventware = spy((req, res, radio) => radio.emit('error'));
 
-      api.route('GET', '~art', middleware);
-
+      api.route('GET ~art', eventware);
       api.emit('request', req, res, () => {
-        expect(middleware).to.not.have.been.called;
+        expect(eventware).to.not.have.been.called;
         done();
       });
     });
 
     it('should give precedence to exact match', (done) => {
       var api = new API();
-      var req = {
-        method: 'GET',
-        url: '/cart'
-      };
+      var req = {method: 'GET', url: '/cart'};
       var res = {};
 
-      var middlewareOne = spy((req, res, next) => next());
-      var middlewareTwo = spy((req, res, next) => next());
-      var middlewareThree = spy((req, res, next) => next());
+      var eventwareOne = spy((req, res, radio) => radio.emit('ok'));
+      var eventwareTwo = spy((req, res, radio) => radio.emit('ok'));
+      var eventwareThree = spy((req, res, radio) => radio.emit('ok'));
 
-      api.route('GET', '~/c..t', middlewareOne);
-      api.route('GET', '/cart', middlewareTwo);
-      api.route('GET', '~/.*', middlewareThree);
+      api.route('GET ~/c..t', eventwareOne);
+      api.route('GET /cart', eventwareTwo);
+      api.route('GET ~/.*', eventwareThree);
 
-      api.emit('request', req, res, function() {
-        expect(middlewareOne).to.not.have.been.called;
-        expect(middlewareTwo).to.have.been.calledOnce;
-        expect(middlewareThree).to.not.have.been.called;
+      api.emit('request', req, res, () => {
+        expect(eventwareOne).to.not.have.been.called;
+        expect(eventwareTwo).to.have.been.calledOnce;
+        expect(eventwareThree).to.not.have.been.called;
         done();
       });
     });

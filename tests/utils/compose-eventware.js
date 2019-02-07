@@ -32,29 +32,11 @@ describe('./utils/compose-eventware.js', () => {
     setTimeout(() => req.calls.push('four') && radio.emit('ok'), 10);
   });
 
-  var oneNext = spy((req, res, next) => {
-    req.calls.push('one');
-    next();
-  });
-
-  var twoNext = spy((req, res, next) => {
-    req.calls.push('two');
-    next();
-  });
-
-  var threeNext = spy((req, res, next) => {
-    req.calls.push('three');
-    next(new Error('Resistance is futile!'));
-  });
-
   beforeEach(() => {
     one.resetHistory();
     two.resetHistory();
     three.resetHistory();
     four.resetHistory();
-    oneNext.resetHistory();
-    twoNext.resetHistory();
-    threeNext.resetHistory();
   });
 
 
@@ -160,43 +142,6 @@ describe('./utils/compose-eventware.js', () => {
       eventware(req, res, radio);
     });
 
-    it('should also work with middlewares', (done) => {
-      var eventware = serial([oneNext, twoNext]);
-
-      radio.on('ok', function() {
-        expect(req.calls).to.have.length(2);
-        expect(req.calls).to.deep.equals(['one', 'two']);
-        expect(oneNext).to.have.been.calledOnce;
-        expect(twoNext).to.have.been.calledOnce;
-        done();
-      });
-
-      eventware(req, res, radio);
-    });
-
-    it('should also work with middlewares (error case)', (done) => {
-      var eventware = serial([oneNext, threeNext, oneNext, threeNext]);
-
-      var successCallback = spy(() => done('should not be called'));
-
-      radio.on('ok', successCallback);
-
-      radio.on('error', (err) => {
-        // Wrap the assertions to get the next tick and catch eventual errors
-        // (in the ideal scenario, this changes nothing)
-        setTimeout(() => {
-          expect(req.calls).to.have.length(2);
-          expect(req.calls).to.deep.equals(['one', 'three']);
-          expect(oneNext).to.have.been.calledOnce;
-          expect(threeNext).to.have.been.calledOnce;
-          expect(err).to.be.an.instanceOf(Error);
-          expect(successCallback).to.not.have.been.called;
-          done();
-        }, 0);
-      });
-
-      eventware(req, res, radio);
-    });
   });
 
   describe('parallel', () => {
@@ -296,47 +241,6 @@ describe('./utils/compose-eventware.js', () => {
       });
 
       eventware(req, res, radio);
-      eventware(req, res, radio);
-    });
-
-    it('should also work with middlewares', (done) => {
-      var eventware = parallel([oneNext, twoNext]);
-
-      radio.on('ok', function() {
-        expect(req.calls).to.have.length(2);
-        expect(req.calls).to.deep.equals(['one', 'two']);
-        expect(oneNext).to.have.been.calledOnce;
-        expect(twoNext).to.have.been.calledOnce;
-        done();
-      });
-
-      eventware(req, res, radio);
-    });
-
-    it('should also work with middlewares (error case)', (done) => {
-      var eventware = parallel([oneNext, threeNext, oneNext, threeNext]);
-
-      var successCallback = spy(() => done('should not be called'));
-
-      radio.on('ok', successCallback);
-
-      radio.on('error', (err) => {
-        // Wrap the assertions to get the next tick (so that everything has
-        // time to finish)
-        setTimeout(() => {
-          // Being concurrent, all calls are still expected to happen.
-          expect(req.calls).to.have.length(4);
-          expect(req.calls).to.deep.equals(['one', 'three', 'one', 'three']);
-          expect(oneNext).to.have.been.calledTwice;
-          expect(threeNext).to.have.been.calledTwice;
-
-          // But the success callback should never be invoked
-          expect(err).to.be.an.instanceOf(Error);
-          expect(successCallback).to.not.have.been.called;
-          done();
-        }, 0);
-      });
-
       eventware(req, res, radio);
     });
   });

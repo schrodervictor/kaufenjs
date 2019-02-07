@@ -4,7 +4,7 @@ var EventEmitter = require('events');
 
 var Route = require('./Route');
 var serial = require('../utils/compose-eventware').serial;
-var notFound = require('../middleware/not-found');
+var notFound = require('../eventware/not-found');
 
 
 class API extends EventEmitter {
@@ -15,15 +15,34 @@ class API extends EventEmitter {
   }
 
   handleRequest(req, res, callback) {
+    callback = callback || function() {};
     var route = this.match(req.method, req.url);
-    var middleware = route ? route.middleware : [];
-    serial([...middleware, notFound])(req, res, callback);
+    var eventware = route ? route.eventware : [];
+
+    var radio = new EventEmitter();
+    radio.on('ok', callback);
+    radio.on('error', callback);
+
+    serial([...eventware, notFound])(req, res, radio);
   }
 
-  route(method, pattern, middleware) {
+  route(requestSpecs, eventware) {
+    var method = this.getMethodFromSpecs(requestSpecs);
+    var pattern = this.getUriFromSpecs(requestSpecs);
+
     var route = this.getRoute(method, pattern);
     if (!route) route = this.addRoute(method, pattern);
-    route.middleware.push(middleware);
+    route.eventware.push(eventware);
+  }
+
+  getMethodFromSpecs(requestSpecs) {
+    return [
+      'GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'HEAD', 'OPTIONS'
+    ].find((verb) => requestSpecs.startsWith(verb));
+  }
+
+  getUriFromSpecs(requestSpecs) {
+    return requestSpecs.slice(requestSpecs.indexOf(' ') + 1);
   }
 
   match(method, url) {
@@ -38,7 +57,7 @@ class API extends EventEmitter {
 
   addRoute(method, pattern) {
     var route = new Route(method, pattern);
-    route.middleware = [];
+    route.eventware = [];
     this.routes.push(route);
     this.sortRoutes();
 
