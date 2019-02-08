@@ -21,6 +21,7 @@ class API extends EventEmitter {
 
     var radio = new EventEmitter();
     radio.on('ok', callback);
+    radio.on('done', callback);
     radio.on('error', callback);
 
     serial([...eventware, notFound])(req, res, radio);

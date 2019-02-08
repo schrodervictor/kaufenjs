@@ -9,18 +9,24 @@ function parallel(eventware) {
 
     var ok = false;
     var error = false;
+    var done = false;
 
     var control = getEmitter({
       success: () => {
-        if (ok || error || --count) return;
+        if (done || ok || error || --count) return;
         ok = true;
         radio.emit('ok');
       },
       error: (err) => {
-        if (ok || error) return;
+        if (done || ok || error) return;
         error = true;
         radio.emit('error', err);
-      }
+      },
+      done: () => {
+        if (done || ok || error) return;
+        done = true;
+        radio.emit('done');
+      },
     });
 
     eventware.map(handler => handler(req, res, control));
@@ -37,17 +43,19 @@ function serial(eventware) {
 
     var control = getEmitter({
       success: () => serial(tail)(req, res, radio),
-      error: (err) => radio.emit('error', err)
+      error: (err) => radio.emit('error', err),
+      done: () => radio.emit('done'),
     });
 
     head(req, res, control);
   };
 }
 
-function getEmitter({ success, error }) {
+function getEmitter({ success, error, done }) {
   var emitter = new EventEmitter();
-  emitter.on('ok', success);
-  emitter.on('error', error);
+  if (success) emitter.on('ok', success);
+  if (error) emitter.on('error', error);
+  if (done) emitter.on('done', done);
   return emitter;
 }
 

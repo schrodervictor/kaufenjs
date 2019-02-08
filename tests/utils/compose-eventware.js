@@ -32,11 +32,13 @@ describe('./utils/compose-eventware.js', () => {
     setTimeout(() => req.calls.push('four') && radio.emit('ok'), 10);
   });
 
+  var five = spy((req, res, radio) => {
+    req.calls.push('five');
+    radio.emit('done');
+  });
+
   beforeEach(() => {
-    one.resetHistory();
-    two.resetHistory();
-    three.resetHistory();
-    four.resetHistory();
+    [one, two, three, four, five].map(spy => spy.resetHistory());
   });
 
 
@@ -81,32 +83,58 @@ describe('./utils/compose-eventware.js', () => {
       eventware(req, res, radio);
     });
 
-    it(
-      'should emit "error" and break the chain when an error occurs',
-      (done) => {
-        var eventware = serial([one, three, one, three]);
+    it('should break the chain when an error occurs', (done) => {
+      var eventware = serial([one, three, one, three]);
 
-        var successCallback = spy(() => done('should not be called'));
-        radio.on('ok', successCallback);
+      var successCallback = spy(() => done('should not be called'));
+      radio.on('ok', successCallback);
 
-        radio.on('error', (err) => {
-          // Wrap the assertions to get the next tick and catch eventual errors
-          // (in the ideal scenario, this changes nothing)
-          setTimeout(() => {
-            expect(req.calls).to.have.length(2);
-            expect(req.calls).to.deep.equals(['one', 'three']);
-            expect(one).to.have.been.calledOnce;
-            expect(three).to.have.been.calledOnce;
+      radio.on('error', (err) => {
+        // Wrap the assertions to get the next tick and catch eventual errors
+        // (in the ideal scenario, this changes nothing)
+        setTimeout(() => {
+          expect(req.calls).to.have.length(2);
+          expect(req.calls).to.deep.equals(['one', 'three']);
+          expect(one).to.have.been.calledOnce;
+          expect(three).to.have.been.calledOnce;
 
-            expect(err).to.be.an.instanceOf(Error);
-            expect(successCallback).to.not.have.been.called;
-            done();
-          }, 0);
-        });
+          expect(err).to.be.an.instanceOf(Error);
+          expect(successCallback).to.not.have.been.called;
+          done();
+        }, 0);
+      });
 
-        eventware(req, res, radio);
-      }
-    );
+      eventware(req, res, radio);
+    });
+
+    it('should break the chain when "done" occurs', (done) => {
+      var eventware = serial([one, two, five, four, three]);
+
+      var callback = spy(() => done('should not be called'));
+      radio.on('ok', callback);
+      radio.on('error', callback);
+
+      radio.on('done', () => {
+        // Wrap the assertions to get the next tick and catch eventual errors
+        // (in the ideal scenario, this changes nothing)
+        setTimeout(() => {
+          expect(req.calls).to.have.length(3);
+          expect(req.calls).to.deep.equals(['one', 'two', 'five']);
+
+          expect(one).to.have.been.calledOnce;
+          expect(two).to.have.been.calledOnce;
+          expect(five).to.have.been.calledOnce;
+
+          expect(three).to.not.have.been.called;
+          expect(four).to.not.have.been.called;
+
+          expect(callback).to.not.have.been.called;
+          done();
+        }, 0);
+      });
+
+      eventware(req, res, radio);
+    });
 
     it('should return a reusable eventware', (done) => {
       var eventware = serial([one, two]);
@@ -219,6 +247,33 @@ describe('./utils/compose-eventware.js', () => {
           // But the success callback should never be invoked
           expect(err).to.be.an.instanceOf(Error);
           expect(successCallback).to.not.have.been.called;
+          done();
+        }, 0);
+      });
+
+      eventware(req, res, radio);
+    });
+
+    it('should emit "done" on the radio when "done" occurs', (done) => {
+      var eventware = parallel([one, two, five, one, two]);
+
+      var callback = spy(() => done('should not be called'));
+      radio.on('ok', callback);
+      radio.on('error', callback);
+
+      radio.on('done', () => {
+        // Wrap the assertions to get the next tick (so that everything has
+        // time to finish)
+        setTimeout(() => {
+          // Being concurrent, all calls are still expected to happen.
+          expect(req.calls).to.have.length(5);
+          expect(req.calls).to.deep.equals(['one', 'two', 'five', 'one', 'two']);
+          expect(one).to.have.been.calledTwice;
+          expect(two).to.have.been.calledTwice;
+          expect(five).to.have.been.calledOnce;
+
+          // But the callback should never be invoked
+          expect(callback).to.not.have.been.called;
           done();
         }, 0);
       });
