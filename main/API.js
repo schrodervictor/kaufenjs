@@ -14,6 +14,15 @@ class API extends EventEmitter {
     this.on('request', this.handleRequest);
   }
 
+  asEventware() {
+    var api = this;
+    return function(req, res, radio) {
+      api.emit('request', req, res, () => {
+        radio.emit('done');
+      });
+    }
+  }
+
   handleRequest(req, res, callback) {
     callback = callback || function() {};
     var route = this.match(req.method, req.url);
