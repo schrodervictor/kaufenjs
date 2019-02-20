@@ -18,16 +18,17 @@ describe('./main/API.js', () => {
   });
 
   describe('catch all handler', () => {
-    it('should have a catch all handler (not found)', (done) => {
+    it('should call the callback, even with no eventware', (done) => {
       var api = new API();
       var req = {method: 'GET', url: '/cart'};
       var res = {};
 
-      api.emit('request', req, res, () => {
-        expect(res.code).to.be.equal(404);
-        expect(res.body).to.be.deep.equal({error: 'Not found'});
+      var callback = spy(() => {
+        expect(callback).to.have.been.calledOnce;
         done();
       });
+
+      api.emit('request', req, res, callback);
     });
   });
 

@@ -4,7 +4,6 @@ var EventEmitter = require('events');
 
 var Route = require('./Route');
 var serial = require('../utils/compose-eventware').serial;
-var notFound = require('../eventware/not-found');
 
 
 class API extends EventEmitter {
@@ -17,9 +16,7 @@ class API extends EventEmitter {
   asEventware() {
     var api = this;
     return function(req, res, radio) {
-      api.emit('request', req, res, () => {
-        radio.emit('done');
-      });
+      api.emit('request', req, res, () => radio.emit('ok'));
     }
   }
 
@@ -33,7 +30,7 @@ class API extends EventEmitter {
     radio.on('done', callback);
     radio.on('error', callback);
 
-    serial([...eventware, notFound])(req, res, radio);
+    serial(eventware)(req, res, radio);
   }
 
   route(requestSpecs, eventware) {
