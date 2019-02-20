@@ -38,8 +38,7 @@ function serial(eventware) {
     var count = eventware.length;
     if (!count) return radio.emit('ok');
 
-    var head = eventware[0];
-    var tail = eventware.slice(1);
+    var [ head, ...tail ] = eventware
 
     var control = getEmitter({
       success: () => serial(tail)(req, res, radio),
